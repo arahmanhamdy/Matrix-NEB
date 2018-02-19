@@ -1,6 +1,6 @@
 from neb.plugins import Plugin
 
-import urllib
+import urllib.parse
 
 
 class UrlPlugin(Plugin):
@@ -11,13 +11,14 @@ class UrlPlugin(Plugin):
 
     name = "url"
 
-    def cmd_encode(self, event, *args):
+    @staticmethod
+    def cmd_encode(event, url):
         """URL encode text. 'url encode <text>'"""
         # use the body directly so quotes are parsed correctly.
-        return urllib.quote(event["content"]["body"][12:])
+        return urllib.parse.quote(url)
 
-    def cmd_decode(self, event, *args):
+    @staticmethod
+    def cmd_decode(event, url):
         """URL decode text. 'url decode <url encoded text>'"""
         # use the body directly so quotes are parsed correctly.
-        return urllib.unquote(event["content"]["body"][12:])
-
+        return urllib.parse.unquote(url)

@@ -1,6 +1,6 @@
 from neb.plugins import Plugin
-import collections
 import random
+
 
 class GuessNumberPlugin(Plugin):
     """Play a guess the number game.
@@ -19,29 +19,29 @@ class GuessNumberPlugin(Plugin):
         super(Plugin, self).__init__(*args, **kwargs)
         self.games = {}
 
-
     def cmd_new(self, event):
         """Start a new game. 'guessnumber new'"""
-        usr = event["user_id"]
+        usr = event["sender"]
         game_state = {
             "num": random.randint(0, GuessNumberPlugin.MAX_NUM),
             "attempts": 0
         }
         self.games[usr] = game_state
         return ("Created a new game. Guess what the chosen number is between 0-%s. You have %s attempts." %
-        (GuessNumberPlugin.MAX_NUM, GuessNumberPlugin.ATTEMPTS))
+                (GuessNumberPlugin.MAX_NUM, GuessNumberPlugin.ATTEMPTS))
 
     def cmd_guess(self, event, num):
         """Make a guess. 'guessnumber guess <number>'"""
-        usr = event["user_id"]
+        usr = event["sender"]
 
         if usr not in self.games:
-            return "You need to start a game first."
+            # return "You need to start a game first."
+            return '<img src="http://google.com"/>'
 
-        int_num = -1
         try:
             int_num = int(num)
-        except:
+        except Exception as e:
+            print(e)
             return "That isn't a number."
 
         target_num = self.games[usr]["num"]
@@ -60,7 +60,7 @@ class GuessNumberPlugin(Plugin):
     def cmd_hint(self, event):
         """Get a hint. 'guessnumber hint'"""
         # hints give a 50% reduction, e.g. between 0-50, even/odd, ends with 12345
-        usr = event["user_id"]
+        usr = event["sender"]
 
         if usr not in self.games:
             return "You need to start a game first."
@@ -84,26 +84,25 @@ class GuessNumberPlugin(Plugin):
             self.games.pop(usr)
             return res
 
-    def _between(self, num):
+    @staticmethod
+    def _between(num):
         half = GuessNumberPlugin.MAX_NUM / 2
         if num < half:
             return "The number is less than %s." % half
         else:
             return "The number is %s or greater." % half
 
-    def _ends_with(self, num):
+    @staticmethod
+    def _ends_with(num):
         actual = num % 10
         if actual < 5:
             return "The last digit is either 0, 1, 2, 3, 4."
         else:
             return "The last digit is either 5, 6, 7, 8, 9."
 
-
-    def _odd_even(self, num):
+    @staticmethod
+    def _odd_even(num):
         if num % 2 == 0:
             return "The number is even."
         else:
             return "The number is odd."
-
-
-

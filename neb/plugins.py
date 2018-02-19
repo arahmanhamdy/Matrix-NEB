@@ -24,6 +24,7 @@ def admin_only(fn):
             return "Sorry, only %s can do that." % json.dumps(config.admins)
         result = fn(*args, **kwargs)
         return result
+
     return wrapped
 
 
@@ -32,7 +33,6 @@ class CommandNotFoundError(Exception):
 
 
 class PluginInterface(object):
-
     def __init__(self, matrix_api, config, web_hook_server):
         self.matrix = matrix_api
         self.config = config
@@ -76,10 +76,11 @@ class PluginInterface(object):
         """Return a string for a webhook path if a webhook is required."""
         pass
 
-    def on_receive_webhook(self, data, ip, headers):
+    def on_receive_webhook(self, url, data, ip, headers):
         """Someone hit your webhook.
 
         Args:
+            url(str): the request url
             data(str): The request body
             ip(str): The source IP address
             headers: A dict of headers (via .get("headername"))
@@ -91,11 +92,10 @@ class PluginInterface(object):
 
 
 class Plugin(PluginInterface):
-
     def run(self, event, arg_str):
-        args_array = [arg_str.encode("utf8")]
+        args_array = [arg_str]
         try:
-            args_array = shlex.split(arg_str.encode("utf8"))
+            args_array = shlex.split(arg_str)
         except ValueError:
             pass  # may be 1 arg without need for quotes
 
@@ -116,7 +116,7 @@ class Plugin(PluginInterface):
                 # function params prefixed with "opt_" should be None if they
                 # are not specified. This makes cmd definitions a lot nicer for
                 # plugins rather than a generic arg array or no optional extras
-                fn_param_names = inspect.getargspec(method)[0][1:]  # remove self
+                fn_param_names = [param for param in inspect.signature(method).parameters][1:]
                 if len(fn_param_names) > len(remaining_args):
                     # pad out the ones at the END marked "opt_" with None
                     for i in reversed(fn_param_names):
@@ -135,5 +135,3 @@ class Plugin(PluginInterface):
                     raise CommandNotFoundError(method.__doc__)
 
         raise CommandNotFoundError("Unknown command")
-
-

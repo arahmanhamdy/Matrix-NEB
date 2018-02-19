@@ -18,6 +18,7 @@ class Engine(object):
         self.config = config
         self.matrix = matrix_api
         self.sync_token = None  # set later by initial sync
+        self.webhook = None
 
     def setup(self):
         self.webhook = NebHookServer(8500)
@@ -50,7 +51,7 @@ class Engine(object):
         )
 
     def add_plugin(self, plugin):
-        log.debug("add_plugin %s", plugin)
+        log.debug("add_plugin {}".format(plugin.name))
         if not plugin.name:
             raise NebError("No name for plugin %s" % plugin)
 
@@ -100,7 +101,7 @@ class Engine(object):
                     try:
                         responses = plugin.run(
                             event,
-                            unicode(" ".join(body.split()[1:]).encode("utf8"))
+                            " ".join(body.split()[1:])
                         )
                     except CommandNotFoundError as e:
                         self.matrix.send_message(
@@ -119,7 +120,7 @@ class Engine(object):
                         log.debug("[Plugin-%s] Response => %s", cmd, responses)
                         if type(responses) == list:
                             for res in responses:
-                                if type(res) in [str, unicode]:
+                                if type(res) == str:
                                     self.matrix.send_message(
                                         room,
                                         res,
@@ -129,7 +130,7 @@ class Engine(object):
                                     self.matrix.send_message_event(
                                         room, "m.room.message", res
                                     )
-                        elif type(responses) in [str, unicode]:
+                        elif type(responses) == str:
                             self.matrix.send_message(
                                 room,
                                 responses,
@@ -179,7 +180,6 @@ class Engine(object):
 
     def parse_sync(self, sync_result, initial_sync=False):
         self.sync_token = sync_result["next_batch"]  # for when we start syncing
-
         # check invited rooms
         rooms = sync_result["rooms"]["invite"]
         for room_id in rooms:
@@ -279,7 +279,8 @@ class KeyValueStore(object):
         try:
             with open(self.config_loc, 'r') as f:
                 self.config = json.loads(f.read())
-        except:
+        except Exception as e:
+            log.error(e)
             self._save()
 
     def _save(self):

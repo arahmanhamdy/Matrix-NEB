@@ -7,7 +7,6 @@ from neb.plugins import Plugin, admin_only
 from Queue import PriorityQueue
 from threading import Thread
 
-
 import time
 import logging as log
 
@@ -19,10 +18,9 @@ class PrometheusPlugin(Plugin):
     """
     name = "prometheus"
 
-    #Webhooks:
-        #    /neb/prometheus
+    # Webhooks:
+    #    /neb/prometheus
     TYPE_TRACK = "org.matrix.neb.plugin.prometheus.projects.tracking"
-
 
     def __init__(self, *args, **kwargs):
         super(PrometheusPlugin, self).__init__(*args, **kwargs)
@@ -30,7 +28,7 @@ class PrometheusPlugin(Plugin):
         self.rooms = RoomContextStore(
             [PrometheusPlugin.TYPE_TRACK]
         )
-        self.queue_counter = 1L
+        self.queue_counter = 1
         self.consumer = MessageConsumer(self.matrix)
         self.consumer.daemon = True
         self.consumer.start()
@@ -92,9 +90,9 @@ class MessageConsumer(Thread):
     def send_message(self, room_id, message):
         try:
             self.matrix.send_message_event(
-                    room_id,
-                    "m.room.message",
-                    self.matrix.get_html_body(message, msgtype="m.notice"),
+                room_id,
+                "m.room.message",
+                self.matrix.get_html_body(message, msgtype="m.notice"),
             )
         except KeyError:
             log.error(KeyError)

@@ -12,26 +12,25 @@ app = Flask("NebHookServer")
 
 
 class NebHookServer(threading.Thread):
-
     def __init__(self, port):
         super(NebHookServer, self).__init__()
         self.port = port
         self.plugin_mappings = {
-        #    plugin_key : plugin_instance
+            #    plugin_key : plugin_instance
         }
 
         app.add_url_rule('/neb/<path:service>', '/neb/<path:service>',
-                         self.do_POST, methods=["POST"])
+                         self.do_post, methods=["POST"])
 
     def set_plugin(self, key, plugin):
         log.info("Registering plugin %s for webhook on /neb/%s" % (plugin, key))
         self.plugin_mappings[key] = plugin
 
-    def do_POST(self, service=""):
+    def do_post(self, service=""):
         log.debug("NebHookServer: Plugin=%s : Incoming request from %s",
                   service, request.remote_addr)
         if service.split("/")[0] not in self.plugin_mappings:
-            return ("", 404, {})
+            return "", 404, {}
 
         plugin = self.plugin_mappings[service.split("/")[0]]
 
@@ -45,13 +44,10 @@ class NebHookServer(threading.Thread):
             )
             if response:
                 return response
-            return ("", 200, {})
+            return "", 200, {}
         except Exception as e:
             log.exception(e)
-            return ("", 500, {})
-
-    def notify_plugin(self, content):
-        self.plugin.on_receive_github_push(content)
+            return "", 500, {}
 
     def run(self):
         log.info("Running NebHookServer")

@@ -3,7 +3,7 @@ from neb.plugins import Plugin, admin_only
 from neb.engine import KeyValueStore, RoomContextStore
 
 import json
-import urlparse
+import urllib.parse
 
 import logging as log
 
@@ -21,14 +21,14 @@ class JenkinsPlugin(Plugin):
 
     # https://wiki.jenkins-ci.org/display/JENKINS/Notification+Plugin
 
-    #New events:
+    # New events:
     #    Type: org.matrix.neb.plugin.jenkins.projects.tracking
     #    State: Yes
     #    Content: {
     #        projects: [projectName1, projectName2, ...]
     #    }
 
-    #Webhooks:
+    # Webhooks:
     #    /neb/jenkins
 
     TRACKING = ["track", "tracking"]
@@ -71,12 +71,12 @@ class JenkinsPlugin(Plugin):
             return self._get_tracking(event["room_id"])
 
         for project in args:
-            if not project in self.store.get("known_projects"):
+            if project not in self.store.get("known_projects"):
                 return "Unknown project name: %s." % project
 
         self._send_track_event(event["room_id"], args)
 
-        return "Jenkins notifications for projects %s will be displayed when they fail." % (args)
+        return "Jenkins notifications for projects %s will be displayed when they fail." % args
 
     @admin_only
     def cmd_add(self, event, project):
@@ -97,7 +97,8 @@ class JenkinsPlugin(Plugin):
         room_projects.append(project)
         self._send_track_event(event["room_id"], room_projects)
 
-        return "Added %s. Jenkins notifications for projects %s will be displayed when they fail." % (project, room_projects)
+        return "Added %s. Jenkins notifications for projects %s will be displayed when they fail." % (
+            project, room_projects)
 
     @admin_only
     def cmd_remove(self, event, project):
@@ -115,7 +116,8 @@ class JenkinsPlugin(Plugin):
         room_projects.remove(project)
         self._send_track_event(event["room_id"], room_projects)
 
-        return "Removed %s. Jenkins notifications for projects %s will be displayed when they fail." % (project, room_projects)
+        return "Removed %s. Jenkins notifications for projects %s will be displayed when they fail." % (
+            project, room_projects)
 
     @admin_only
     def cmd_stop(self, event, action):
@@ -129,10 +131,10 @@ class JenkinsPlugin(Plugin):
     def _get_tracking(self, room_id):
         try:
             return ("Currently tracking %s" %
-                json.dumps(self.rooms.get_content(
-                    room_id, JenkinsPlugin.TYPE_TRACK)["projects"]
-                )
-            )
+                    json.dumps(self.rooms.get_content(
+                        room_id, JenkinsPlugin.TYPE_TRACK)["projects"]
+                               )
+                    )
         except KeyError:
             return "Not tracking any projects currently."
 
@@ -195,28 +197,27 @@ class JenkinsPlugin(Plugin):
         j = json.loads(data)
         name = j["name"]
 
-        query_dict = urlparse.parse_qs(urlparse.urlparse(url).query)
+        query_dict = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
         if self.store.get("secret_token"):
             if "secret" not in query_dict:
-                log.warn("Jenkins webhook: Missing secret.")
-                return ("", 403, {})
-            
+                log.warning("Jenkins webhook: Missing secret.")
+                return "", 403, {}
+
             # The jenkins Notification plugin does not support any sort of
             # "execute this code on this json object before you send" so we can't
             # send across HMAC SHA1s like with github :( so a secret token will
             # have to do.
             secrets = query_dict["secret"]
             if len(secrets) > 1:
-                log.warn("Jenkins webhook: FAILED SECRET TOKEN AUTH. Too many secrets. IP=%s",
-                         ip)
-                return ("", 403, {})
+                log.warning("Jenkins webhook: FAILED SECRET TOKEN AUTH. Too many secrets. IP=%s",
+                            ip)
+                return "", 403, {}
             elif secrets[0] != self.store.get("secret_token"):
-                log.warn("Jenkins webhook: FAILED SECRET TOKEN AUTH. Mismatch. IP=%s",
-                         ip)
-                return ("", 403, {})
+                log.warning("Jenkins webhook: FAILED SECRET TOKEN AUTH. Mismatch. IP=%s",
+                            ip)
+                return "", 403, {}
             else:
                 log.info("Jenkins webhook: Secret verified.")
-
 
         # add the project if we didn't know about it before
         if name not in self.store.get("known_projects"):
@@ -228,7 +229,6 @@ class JenkinsPlugin(Plugin):
         status = j["build"]["status"]
         branch = None
         commit = None
-        git_url = None
         jenkins_url = None
         info = ""
         try:
@@ -242,7 +242,6 @@ class JenkinsPlugin(Plugin):
                 # git@github.com:matrix-org/synapse.git
                 org_and_repo = git_url.split(":")[1][:-4]
                 commit = "https://github.com/%s/commit/%s" % (org_and_repo, commit)
-
 
             info = "%s commit %s - %s" % (branch, commit, jenkins_url)
         except KeyError:
@@ -282,5 +281,3 @@ class JenkinsPlugin(Plugin):
                 )
                 self.send_message_to_repos(name, msg)
                 self.failed_builds.pop(fail_key)
-
-

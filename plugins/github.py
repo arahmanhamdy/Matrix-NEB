@@ -22,14 +22,14 @@ class GithubPlugin(Plugin):
     github label add|remove owner/repo issue# label : Label an issue on Github.
     """
     name = "github"
-    #New events:
+    # New events:
     #    Type: org.matrix.neb.plugin.github.projects.tracking
     #    State: Yes
     #    Content: {
     #        projects: [projectName1, projectName2, ...]
     #    }
 
-    #Webhooks:
+    # Webhooks:
     #    /neb/github
     TYPE_TRACK = "org.matrix.neb.plugin.github.projects.tracking"
     TYPE_COLOR = "org.matrix.neb.plugin.github.projects.color"
@@ -52,7 +52,7 @@ class GithubPlugin(Plugin):
         if not self.store.has("github_access_token"):
             log.info("A github access_token is required to create github issues.")
             log.info("Issues will be created as this user.")
-            token = raw_input("(Optional) Github token: ").strip()
+            token = input("(Optional) Github token: ").strip()
             if token:
                 self.store.set("github_access_token", token)
             else:
@@ -67,8 +67,6 @@ class GithubPlugin(Plugin):
             projects = self.store.get("known_projects")
             projects.append(info["repo"])
             self.store.set("known_projects", projects)
-
-        push_message = ""
 
         if info["type"] == "delete":
             push_message = '[<u>%s</u>] %s <font color="red"><b>deleted</font> %s</b>' % (
@@ -107,7 +105,7 @@ class GithubPlugin(Plugin):
                     summary
                 )
         else:
-            log.warn("Unknown push type. %s", info["type"])
+            log.warning("Unknown push type. %s", info["type"])
             return
 
         self.send_message_to_repos(info["repo"], push_message)
@@ -132,7 +130,8 @@ class GithubPlugin(Plugin):
         """
         if action == "projects":
             projects = self.store.get("known_projects")
-            return "Available projects: %s - To add more projects, you must register a webhook on Github." % json.dumps(projects)
+            return "Available projects: %s - To add more projects, you must register a webhook on Github." % json.dumps(
+                projects)
         elif action in self.TRACKING:
             return self._get_tracking(event["room_id"])
         else:
@@ -183,7 +182,7 @@ class GithubPlugin(Plugin):
             return self._get_tracking(event["room_id"])
 
         for project in args:
-            if not project in self.store.get("known_projects"):
+            if project not in self.store.get("known_projects"):
                 return "Unknown project name: %s." % project
 
         self._send_track_event(event["room_id"], args)
@@ -217,8 +216,8 @@ class GithubPlugin(Plugin):
             if ' ' in possible_desc:
                 desc = possible_desc
                 title = others[0]
-        except:
-            pass
+        except Exception as e:
+            log.error(e)
 
         return self._create_issue(
             event["user_id"], project, title, desc
@@ -246,7 +245,7 @@ class GithubPlugin(Plugin):
                 errs.append(
                     "Problem removing label %s : HTTP %s" % (label, res.status_code)
                 )
-                return err
+                return errs
 
         if len(errs) == 0:
             return "Removed labels %s" % (json.dumps(args),)
@@ -303,7 +302,6 @@ class GithubPlugin(Plugin):
         return "Created issue: %s" % response["html_url"]
 
     def _is_valid_issue_request(self, repo, issue_num):
-        issue_is_num = True
         try:
             issue_is_num = int(issue_num)
         except ValueError:
@@ -314,7 +312,7 @@ class GithubPlugin(Plugin):
 
         if not issue_is_num:
             return "Issue number must be a number"
-        
+
         if not self.store.has("github_access_token"):
             return "This plugin isn't configured to interact with Github issues."
 
@@ -422,7 +420,6 @@ class GithubPlugin(Plugin):
         )
         self.send_message_to_repos(repo_name, msg)
 
-
     def on_receive_pull_request_comment(self, data):
         repo_name = data["repository"]["full_name"]
         username = data["sender"]["login"]
@@ -445,7 +442,6 @@ class GithubPlugin(Plugin):
             comment_url
         )
         self.send_message_to_repos(repo_name, msg)
-
 
     def on_receive_issue(self, data):
         action = data["action"]
@@ -470,9 +466,8 @@ class GithubPlugin(Plugin):
                 )
                 self.send_message_to_repos(repo_name, msg)
                 return
-            except:
-                pass
-
+            except Exception as e:
+                print(e)
 
         msg = "[<u>%s</u>] %s %s issue #%s: %s - %s" % (
             repo_name,
@@ -485,7 +480,6 @@ class GithubPlugin(Plugin):
 
         self.send_message_to_repos(repo_name, msg)
 
-
     def on_receive_webhook(self, url, data, ip, headers):
         if self.store.get("secret_token"):
             token_sha1 = headers.get('X-Hub-Signature')
@@ -494,9 +488,8 @@ class GithubPlugin(Plugin):
                             sha1)
             calc_sha1 = "sha1=" + calc.hexdigest()
             if token_sha1 != calc_sha1:
-                log.warn("GithubWebServer: FAILED SECRET TOKEN AUTH. IP=%s",
-                         ip)
-                return ("", 403, {})
+                log.warning("GithubWebServer: FAILED SECRET TOKEN AUTH. IP=%s", ip)
+                return "", 403, {}
 
         json_data = json.loads(data)
         is_private_repo = json_data.get("repository", {}).get("private")
@@ -505,7 +498,6 @@ class GithubPlugin(Plugin):
                 "Received private repo event for %s", json_data["repository"].get("name")
             )
             return
-
 
         event_type = headers.get('X-GitHub-Event')
         if event_type == "pull_request":
@@ -552,7 +544,6 @@ class GithubPlugin(Plugin):
             commit_name = j["pusher"]["name"]
             push_type = "delete"
 
-        commit_uname = None
         try:
             commit_uname = j["head_commit"]["committer"]["username"]
         except Exception:
@@ -565,16 +556,14 @@ class GithubPlugin(Plugin):
         if "commits" in j and len(j["commits"]) > 1:
             num_commits = len(j["commits"])
             for c in j["commits"]:
-                cname = None
                 try:
                     cname = c["author"]["username"]
-                except:
+                except Exception:
                     cname = c["author"]["name"]
                 commits_summary.append({
                     "author": cname,
                     "summary": c["message"]
                 })
-
 
         self.on_receive_github_push({
             "branch": branch,
